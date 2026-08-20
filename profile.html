@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My profile — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><a href="#" id="backLink">← Back to dashboard</a></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+  </div>
+</nav>
+
+<div class="auth-wrap" style="max-width:560px;">
+  <div style="text-align:center;margin-bottom:26px;">
+    <div class="profile-avatar" id="avatarCircle">?</div>
+    <h1 style="font-size:24px;margin-top:14px;" id="profileTitle">My profile</h1>
+    <p id="profileSub" style="margin:4px 0 0;"></p>
+  </div>
+
+  <div id="saveMsg" class="hidden" style="background:rgba(30,157,99,.12);color:var(--ok);padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13.5px;text-align:center;">✓ Profile saved</div>
+  <div id="errMsg" class="hidden" style="background:rgba(208,57,43,.1);color:var(--urgent);padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13.5px;"></div>
+
+  <form onsubmit="return saveProfile(event)" class="panel">
+    <!-- shared fields -->
+    <div class="field"><label>Full name</label><input type="text" id="p_full_name" required></div>
+    <div class="field"><label>Phone number</label><input type="tel" id="p_phone"></div>
+    <div class="field"><label>Email (login — can't be changed here)</label><input type="email" id="p_email" disabled style="opacity:.6;"></div>
+
+    <!-- customer-only -->
+    <div id="customerFields">
+      <div class="field"><label>Postcode</label><input type="text" id="p_postcode"></div>
+      <div class="field">
+        <label>Property type</label>
+        <select id="p_property_type">
+          <option value="">Select…</option>
+          <option>House</option>
+          <option>Flat / apartment</option>
+          <option>Rented property</option>
+          <option>Commercial premises</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- trade-only -->
+    <div id="tradeFields" class="hidden">
+      <div class="field"><label>Business name</label><input type="text" id="p_business_name"></div>
+      <div class="two-col">
+        <div class="field">
+          <label>Primary trade</label>
+          <select id="p_primary_trade">
+            <option value="">Select…</option>
+            <option>Heating engineer</option>
+            <option>Plumber</option>
+            <option>Both</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Years in business</label>
+          <select id="p_years_experience">
+            <option value="">Select…</option>
+            <option>Less than 1 year</option>
+            <option>1–3 years</option>
+            <option>4–9 years</option>
+            <option>10+ years</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Postcode areas covered</label><input type="text" id="p_coverage_postcodes" placeholder="e.g. KY11, KY12, KY1"></div>
+      <div class="field"><label>Gas Safe / certification number</label><input type="text" id="p_gas_safe_number"></div>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-block" id="saveBtn">Save changes</button>
+  </form>
+</div>
+
+<script>
+let me = null;
+let myRole = 'customer';
+
+(async function init(){
+  const auth = await requireAuth();
+  if(!auth) return;
+  me = auth.session.user;
+  const p = auth.profile;
+  myRole = p ? p.role : 'customer';
+
+  document.getElementById('backLink').href = myRole === 'trade' ? 'plumber-dashboard.html' : 'customer-dashboard.html';
+  document.getElementById('p_email').value = me.email;
+
+  if(p){
+    document.getElementById('p_full_name').value = p.full_name || '';
+    document.getElementById('p_phone').value = p.phone || '';
+    document.getElementById('avatarCircle').textContent = (p.full_name || me.email)[0].toUpperCase();
+    if(myRole === 'trade'){
+      document.getElementById('customerFields').classList.add('hidden');
+      document.getElementById('tradeFields').classList.remove('hidden');
+      document.getElementById('profileTitle').textContent = p.business_name || 'My business profile';
+      document.getElementById('profileSub').textContent = 'Tradesperson account';
+      document.getElementById('p_business_name').value = p.business_name || '';
+      document.getElementById('p_primary_trade').value = p.primary_trade || '';
+      document.getElementById('p_years_experience').value = p.years_experience || '';
+      document.getElementById('p_coverage_postcodes').value = p.coverage_postcodes || '';
+      document.getElementById('p_gas_safe_number').value = p.gas_safe_number || '';
+    } else {
+      document.getElementById('profileSub').textContent = myRole === 'admin' ? 'Admin account' : 'Customer account';
+      document.getElementById('p_postcode').value = p.postcode || '';
+      document.getElementById('p_property_type').value = p.property_type || '';
+    }
+  }
+})();
+
+async function saveProfile(e){
+  e.preventDefault();
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  document.getElementById('saveMsg').classList.add('hidden');
+  document.getElementById('errMsg').classList.add('hidden');
+
+  const updates = {
+    full_name: document.getElementById('p_full_name').value,
+    phone: document.getElementById('p_phone').value
+  };
+  if(myRole === 'trade'){
+    updates.business_name = document.getElementById('p_business_name').value;
+    updates.primary_trade = document.getElementById('p_primary_trade').value;
+    updates.years_experience = document.getElementById('p_years_experience').value;
+    updates.coverage_postcodes = document.getElementById('p_coverage_postcodes').value;
+    updates.gas_safe_number = document.getElementById('p_gas_safe_number').value;
+  } else {
+    updates.postcode = document.getElementById('p_postcode').value;
+    updates.property_type = document.getElementById('p_property_type').value;
+  }
+
+  const { error } = await supabaseClient.from('profiles').update(updates).eq('id', me.id);
+
+  btn.disabled = false; btn.textContent = 'Save changes';
+  if(error){
+    const el = document.getElementById('errMsg');
+    el.textContent = 'Could not save: ' + error.message;
+    el.classList.remove('hidden');
+    return false;
+  }
+  document.getElementById('saveMsg').classList.remove('hidden');
+  document.getElementById('avatarCircle').textContent = (updates.full_name || me.email)[0].toUpperCase();
+  window.scrollTo({top:0,behavior:'smooth'});
+  return false;
+}
+</script>
+</body>
+</html>
