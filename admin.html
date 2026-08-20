@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin — Manage site images — Callout</title>
+<title>Admin — Callout</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/supabase-config.js"></script>
@@ -17,24 +17,81 @@
 <nav class="topnav">
   <div class="wrap">
     <a href="index.html" class="brand"><span class="dot"></span>Callout <span class="badge badge-urgent" style="margin-left:8px;">Admin</span></a>
-    <div class="navlinks"><span class="mono" id="whoami" style="color:var(--muted);">…</span></div>
-    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+    <div class="navlinks"><span class="mono" id="whoami" style="color:rgba(255,255,255,.7);">…</span></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);">Log out</a></div>
   </div>
 </nav>
 
-<div class="wrap" style="max-width:900px;margin:40px auto;">
-  <h2 style="margin-bottom:6px;">Manage site images</h2>
-  <p style="margin-bottom:30px;">Upload a replacement for any photo shown on the public site. Changes go live immediately.</p>
+<div class="dash-shell">
+  <aside class="sidebar">
+    <a href="#" class="active" onclick="showTab('overview', this)">Overview</a>
+    <a href="#" onclick="showTab('callouts', this)">All callouts</a>
+    <a href="#" onclick="showTab('users', this)">Users</a>
+    <a href="#" onclick="showTab('reviews', this)">Reviews</a>
+    <a href="#" onclick="showTab('images', this)">Site images</a>
+  </aside>
 
-  <div id="deniedPanel" class="panel hidden" style="text-align:center;">
-    <h3>Admins only</h3>
-    <p>Your account doesn't have admin access. Ask whoever set up the project to change your role to "admin" in the profiles table.</p>
-  </div>
+  <main class="dash-main">
+    <div id="deniedPanel" class="panel hidden" style="text-align:center;">
+      <h3>Admins only</h3>
+      <p>This account doesn't have admin access. In Supabase: Table Editor → profiles → set your row's role to "admin".</p>
+    </div>
 
-  <div id="imageGrid" class="hidden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;"></div>
+    <!-- OVERVIEW -->
+    <div id="tab-overview" class="admin-tab hidden">
+      <h2 style="margin-bottom:20px;">Overview</h2>
+      <div class="stat-band" id="statBand" style="margin-bottom:28px;"></div>
+      <div class="panel">
+        <h4 style="margin-bottom:14px;">Latest callouts</h4>
+        <div id="recentList"><p>Loading…</p></div>
+      </div>
+    </div>
+
+    <!-- CALLOUTS -->
+    <div id="tab-callouts" class="admin-tab hidden">
+      <h2 style="margin-bottom:14px;">All callouts</h2>
+      <div class="filter-row">
+        <span class="filter-chip active" data-f="all" onclick="filterCallouts('all',this)">All</span>
+        <span class="filter-chip" data-f="submitted" onclick="filterCallouts('submitted',this)">Open</span>
+        <span class="filter-chip" data-f="accepted" onclick="filterCallouts('accepted',this)">In progress</span>
+        <span class="filter-chip" data-f="trade_completed" onclick="filterCallouts('trade_completed',this)">Awaiting confirm</span>
+        <span class="filter-chip" data-f="completed" onclick="filterCallouts('completed',this)">Completed</span>
+      </div>
+      <div id="calloutsList"><p>Loading…</p></div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="admin-tab hidden">
+      <h2 style="margin-bottom:14px;">Users</h2>
+      <div class="filter-row">
+        <span class="filter-chip active" data-f="all" onclick="filterUsers('all',this)">All</span>
+        <span class="filter-chip" data-f="customer" onclick="filterUsers('customer',this)">Customers</span>
+        <span class="filter-chip" data-f="trade" onclick="filterUsers('trade',this)">Tradespeople</span>
+      </div>
+      <div id="usersList"><p>Loading…</p></div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div id="tab-reviews" class="admin-tab hidden">
+      <h2 style="margin-bottom:20px;">Reviews</h2>
+      <div id="reviewsList"><p>Loading…</p></div>
+    </div>
+
+    <!-- IMAGES -->
+    <div id="tab-images" class="admin-tab hidden">
+      <h2 style="margin-bottom:6px;">Site images</h2>
+      <p style="margin-bottom:24px;">Replace any photo shown on the public site. Changes go live immediately.</p>
+      <div id="imageGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;"></div>
+    </div>
+  </main>
 </div>
 
 <script>
+let allCallouts = [];
+let allProfiles = [];
+let calloutFilter = 'all';
+let userFilter = 'all';
+
 const SLOTS = [
   { key:'hero', label:'Homepage hero photo', fallback:'https://picsum.photos/seed/callout-hero/700/400' },
   { key:'heating-card', label:'Heating service card', fallback:'https://picsum.photos/seed/callout-heating/500/300' },
@@ -47,7 +104,6 @@ const SLOTS = [
   { key:'cust2', label:'Testimonial photo — 2', fallback:'https://picsum.photos/seed/callout-cust2/100/100' },
   { key:'cust3', label:'Testimonial photo — 3', fallback:'https://picsum.photos/seed/callout-cust3/100/100' },
 ];
-
 let currentImages = {};
 
 (async function init(){
@@ -58,20 +114,158 @@ let currentImages = {};
     return;
   }
   document.getElementById('whoami').textContent = auth.session.user.email;
-  await loadImages();
+  document.getElementById('tab-overview').classList.remove('hidden');
+  await loadAll();
 })();
 
-async function loadImages(){
-  const { data } = await supabaseClient.from('site_images').select('slot,url');
+async function loadAll(){
+  const [cRes, pRes, iRes] = await Promise.all([
+    supabaseClient.from('callouts').select('*').order('created_at',{ascending:false}),
+    supabaseClient.from('profiles').select('*').order('created_at',{ascending:false}),
+    supabaseClient.from('site_images').select('slot,url')
+  ]);
+  allCallouts = cRes.data || [];
+  allProfiles = pRes.data || [];
   currentImages = {};
-  (data || []).forEach(row => { currentImages[row.slot] = row.url; });
-  renderGrid();
+  (iRes.data || []).forEach(r => { currentImages[r.slot] = r.url; });
+
+  renderOverview();
+  renderCallouts();
+  renderUsers();
+  renderReviews();
+  renderImages();
 }
 
-function renderGrid(){
-  const grid = document.getElementById('imageGrid');
-  grid.classList.remove('hidden');
-  grid.innerHTML = SLOTS.map(s => `
+function showTab(name, el){
+  document.querySelectorAll('.admin-tab').forEach(t=>t.classList.add('hidden'));
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function statusBadge(s){
+  const map = {
+    submitted:['Open','badge-urgent'],
+    accepted:['In progress','badge-water'],
+    trade_completed:['Awaiting confirm','badge-heat'],
+    completed:['Completed','']
+  };
+  const [label, cls] = map[s] || [s,''];
+  const style = s==='completed' ? 'style="background:rgba(30,157,99,.15);color:var(--ok);"' : '';
+  return `<span class="badge ${cls}" ${style}>${label}</span>`;
+}
+
+/* ---------- OVERVIEW ---------- */
+function renderOverview(){
+  const open = allCallouts.filter(c=>c.status==='submitted').length;
+  const active = allCallouts.filter(c=>c.status==='accepted'||c.status==='trade_completed').length;
+  const done = allCallouts.filter(c=>c.status==='completed').length;
+  const customers = allProfiles.filter(p=>p.role==='customer').length;
+  const trades = allProfiles.filter(p=>p.role==='trade').length;
+  const rated = allCallouts.filter(c=>c.rating);
+  const avg = rated.length ? (rated.reduce((s,c)=>s+c.rating,0)/rated.length).toFixed(1) : '—';
+
+  document.getElementById('statBand').innerHTML = `
+    <div><div class="stat-num">${allCallouts.length}</div><div class="stat-label">Total callouts</div></div>
+    <div><div class="stat-num">${open}</div><div class="stat-label">Open now</div></div>
+    <div><div class="stat-num">${active}</div><div class="stat-label">In progress</div></div>
+    <div><div class="stat-num">${done}</div><div class="stat-label">Completed</div></div>
+    <div><div class="stat-num">${customers}</div><div class="stat-label">Customers</div></div>
+    <div><div class="stat-num">${trades}</div><div class="stat-label">Tradespeople</div></div>
+    <div><div class="stat-num">${avg}${avg!=='—'?'★':''}</div><div class="stat-label">Avg rating</div></div>
+  `;
+
+  document.getElementById('recentList').innerHTML = allCallouts.slice(0,5).map(rowHtml).join('') || '<p>No callouts yet.</p>';
+}
+
+function rowHtml(c){
+  return `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
+      <div>
+        <strong>${c.issue || c.service}</strong>
+        <span class="lead-meta" style="margin-left:8px;">${c.customer_name || '—'} · ${c.postcode || ''}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        ${c.assigned_trade_name ? `<span class="lead-meta">→ ${c.assigned_trade_name}</span>` : ''}
+        ${statusBadge(c.status)}
+      </div>
+    </div>`;
+}
+
+/* ---------- CALLOUTS ---------- */
+function filterCallouts(f, el){
+  calloutFilter = f;
+  document.querySelectorAll('#tab-callouts .filter-chip').forEach(ch=>ch.classList.remove('active'));
+  el.classList.add('active');
+  renderCallouts();
+}
+function renderCallouts(){
+  let rows = calloutFilter==='all' ? allCallouts : allCallouts.filter(c=>c.status===calloutFilter);
+  document.getElementById('calloutsList').innerHTML = rows.length
+    ? rows.map(c => `
+      <div class="panel panel-tight" style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+          <div>
+            <strong>${c.issue || c.service}</strong> ${statusBadge(c.status)}
+            <div class="lead-meta" style="margin-top:6px;">
+              #${c.id.slice(0,8).toUpperCase()} · ${new Date(c.created_at).toLocaleString()}<br>
+              Customer: ${c.customer_name || '—'} (${c.customer_phone || 'no phone'})<br>
+              ${c.address || c.postcode || ''}<br>
+              ${c.assigned_trade_name ? 'Engineer: ' + c.assigned_trade_name : 'Not yet accepted'}
+              ${c.rating ? '<br>Rated: ' + '★'.repeat(c.rating) + (c.review ? ' — "'+c.review+'"' : '') : ''}
+            </div>
+          </div>
+        </div>
+      </div>`).join('')
+    : '<div class="panel" style="text-align:center;">Nothing in this category.</div>';
+}
+
+/* ---------- USERS ---------- */
+function filterUsers(f, el){
+  userFilter = f;
+  document.querySelectorAll('#tab-users .filter-chip').forEach(ch=>ch.classList.remove('active'));
+  el.classList.add('active');
+  renderUsers();
+}
+function renderUsers(){
+  let rows = userFilter==='all' ? allProfiles : allProfiles.filter(p=>p.role===userFilter);
+  document.getElementById('usersList').innerHTML = rows.length
+    ? rows.map(p => {
+        const jobs = p.role==='trade'
+          ? allCallouts.filter(c=>c.assigned_trade_id===p.id).length
+          : allCallouts.filter(c=>c.customer_id===p.id).length;
+        return `
+        <div class="panel panel-tight" style="margin-bottom:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;">
+          <div>
+            <strong>${p.role==='trade' ? (p.business_name || p.full_name) : p.full_name || '—'}</strong>
+            <span class="badge ${p.role==='trade'?'badge-water':p.role==='admin'?'badge-urgent':'badge-heat'}" style="margin-left:8px;">${p.role}</span>
+            <div class="lead-meta" style="margin-top:6px;">
+              ${p.full_name || ''} · ${p.phone || 'no phone'}
+              ${p.role==='trade' ? `<br>${p.primary_trade || ''} · covers ${p.coverage_postcodes || '—'} ${p.gas_safe_number ? '· Gas Safe: '+p.gas_safe_number : ''}` : `<br>${p.postcode || ''} ${p.property_type ? '· '+p.property_type : ''}`}
+            </div>
+          </div>
+          <div class="lead-meta">${jobs} ${p.role==='trade'?'jobs accepted':'callouts made'}</div>
+        </div>`;
+      }).join('')
+    : '<div class="panel" style="text-align:center;">No users in this category.</div>';
+}
+
+/* ---------- REVIEWS ---------- */
+function renderReviews(){
+  const rated = allCallouts.filter(c=>c.rating);
+  document.getElementById('reviewsList').innerHTML = rated.length
+    ? rated.map(c => `
+      <div class="panel panel-tight" style="margin-bottom:12px;">
+        <div style="color:#F2B01E;font-size:18px;">${'★'.repeat(c.rating)}${'☆'.repeat(5-c.rating)}</div>
+        ${c.review ? `<p style="margin:8px 0 6px;color:var(--text);">"${c.review}"</p>` : ''}
+        <div class="lead-meta">${c.customer_name || 'Customer'} → ${c.assigned_trade_name || 'engineer'} · ${c.issue || c.service} · ${new Date(c.created_at).toLocaleDateString()}</div>
+      </div>`).join('')
+    : '<div class="panel" style="text-align:center;">No reviews yet — they appear when customers confirm completed jobs.</div>';
+}
+
+/* ---------- IMAGES ---------- */
+function renderImages(){
+  document.getElementById('imageGrid').innerHTML = SLOTS.map(s => `
     <div class="panel" style="text-align:center;">
       <div style="width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;margin-bottom:12px;border:1px solid var(--line);">
         <img class="img-cover" src="${currentImages[s.key] || s.fallback}" id="preview-${s.key}">
@@ -87,18 +281,13 @@ async function uploadImage(slot, e){
   const file = e.target.files[0];
   if(!file) return;
   const path = `${slot}-${Date.now()}.${file.name.split('.').pop()}`;
-
   const { error: upErr } = await supabaseClient.storage.from('site-images').upload(path, file, { upsert: true });
   if(upErr){ alert('Upload failed: ' + upErr.message); return; }
-
   const { data: pub } = supabaseClient.storage.from('site-images').getPublicUrl(path);
-  const url = pub.publicUrl;
-
-  const { error: dbErr } = await supabaseClient.from('site_images').upsert({ slot, url, updated_at: new Date().toISOString() });
+  const { error: dbErr } = await supabaseClient.from('site_images').upsert({ slot, url: pub.publicUrl, updated_at: new Date().toISOString() });
   if(dbErr){ alert('Uploaded, but saving the reference failed: ' + dbErr.message); return; }
-
-  currentImages[slot] = url;
-  document.getElementById(`preview-${slot}`).src = url;
+  currentImages[slot] = pub.publicUrl;
+  document.getElementById(`preview-${slot}`).src = pub.publicUrl;
 }
 </script>
 </body>
