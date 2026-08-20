@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My callouts — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><span class="mono" id="whoami" style="color:var(--muted);">…</span></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+  </div>
+</nav>
+
+<div class="dash-shell">
+  <aside class="sidebar">
+    <a href="#" class="active">My callouts</a>
+    <a href="request-service.html">+ New callout</a>
+  </aside>
+
+  <main class="dash-main">
+    <h2 style="margin-bottom:20px;">Your callouts</h2>
+    <div id="calloutList">
+      <p>Loading…</p>
+    </div>
+  </main>
+</div>
+
+<script>
+(async function init(){
+  const auth = await requireAuth();
+  if(!auth) return;
+  document.getElementById('whoami').textContent = auth.profile ? auth.profile.full_name : auth.session.user.email;
+  await loadCallouts(auth.session.user.id);
+})();
+
+function statusSteps(status){
+  const steps = [
+    { key:'submitted', label:'Callout received' },
+    { key:'accepted', label:'Matched with an engineer' },
+    { key:'completed', label:'Job complete' }
+  ];
+  const order = ['submitted','accepted','completed'];
+  const currentIdx = order.indexOf(status);
+  return steps.map((s,i) => {
+    let cls = '';
+    if(i < currentIdx) cls = 'done';
+    else if(i === currentIdx) cls = 'current';
+    return `<li class="${cls}"><div class="tl-dot"></div><div><div class="tl-title">${s.label}</div></div></li>`;
+  }).join('');
+}
+
+async function loadCallouts(userId){
+  const { data, error } = await supabaseClient
+    .from('callouts')
+    .select('*')
+    .eq('customer_id', userId)
+    .order('created_at', { ascending: false });
+
+  const listEl = document.getElementById('calloutList');
+
+  if(error){
+    listEl.innerHTML = `<p>Couldn't load your callouts: ${error.message}</p>`;
+    return;
+  }
+  if(!data || data.length === 0){
+    listEl.innerHTML = `<div class="panel" style="text-align:center;"><p>No callouts yet.</p><a href="request-service.html" class="btn btn-primary">Submit your first callout</a></div>`;
+    return;
+  }
+
+  listEl.innerHTML = data.map(c => `
+    <div class="panel" style="margin-bottom:20px;">
+      <div class="lead-top">
+        <div>
+          <span class="badge ${c.service==='heat'?'badge-heat':'badge-water'}">${c.issue || c.service}</span>
+          ${c.urgency==='Emergency — right now' ? '<span class="badge badge-urgent" style="margin-left:6px;">Emergency</span>' : ''}
+          <p style="margin:10px 0 0;color:var(--text);">${c.description || ''}</p>
+        </div>
+      </div>
+      <div class="lead-meta" style="margin-top:12px;">Ref #${c.id.slice(0,8).toUpperCase()} · ${c.address || ''}</div>
+      ${c.photo_url ? `<div class="thumb-sm" style="margin-top:10px;"><img class="img-cover" src="${c.photo_url}"></div>` : ''}
+      <h4 style="margin:20px 0 14px;font-size:15px;">Status</h4>
+      <ul class="timeline">${statusSteps(c.status)}</ul>
+      ${c.status !== 'submitted' && c.assigned_trade_name ? `
+        <div style="display:flex;gap:14px;align-items:center;margin-top:10px;">
+          <div style="width:44px;height:44px;border-radius:50%;background:var(--water-dim);display:flex;align-items:center;justify-content:center;">🔧</div>
+          <div><div style="font-weight:700;">${c.assigned_trade_name}</div><div class="lead-meta">Assigned engineer</div></div>
+        </div>` : ''}
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>

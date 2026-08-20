@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incoming callouts — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><span class="mono" id="whoami" style="color:var(--muted);">…</span></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+  </div>
+</nav>
+
+<div class="dash-shell">
+  <aside class="sidebar">
+    <a href="#" class="active" onclick="showTab('open')">Incoming callouts</a>
+    <a href="#" onclick="showTab('mine')">My accepted jobs</a>
+  </aside>
+
+  <main class="dash-main">
+    <h2 style="margin-bottom:6px;" id="pageTitle">Incoming callouts</h2>
+    <p style="margin-bottom:20px;">Open to any available engineer — accept to claim it and unlock contact details.</p>
+    <div class="filter-row">
+      <span class="filter-chip active" onclick="filterLeads('all', this)">All</span>
+      <span class="filter-chip" onclick="filterLeads('heat', this)">Heating</span>
+      <span class="filter-chip" onclick="filterLeads('water', this)">Plumbing</span>
+    </div>
+    <div id="leadList"><p>Loading…</p></div>
+  </main>
+</div>
+
+<script>
+let currentUser = null;
+let currentTab = 'open';
+let allLeads = [];
+
+(async function init(){
+  const auth = await requireAuth();
+  if(!auth) return;
+  if(auth.profile && auth.profile.role !== 'trade'){
+    alert('This dashboard is for tradespeople. Redirecting you to your callouts.');
+    window.location.href = 'customer-dashboard.html';
+    return;
+  }
+  currentUser = auth.session.user;
+  document.getElementById('whoami').textContent = auth.profile ? auth.profile.business_name : currentUser.email;
+  await loadLeads();
+})();
+
+function showTab(tab){
+  currentTab = tab;
+  document.getElementById('pageTitle').textContent = tab==='open' ? 'Incoming callouts' : 'My accepted jobs';
+  document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+  event.target.classList.add('active');
+  render();
+}
+
+async function loadLeads(){
+  const { data, error } = await supabaseClient
+    .from('callouts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if(error){
+    document.getElementById('leadList').innerHTML = `<p>Couldn't load callouts: ${error.message}</p>`;
+    return;
+  }
+  allLeads = data || [];
+  render();
+}
+
+function render(filterType){
+  const listEl = document.getElementById('leadList');
+  const active = document.querySelector('.filter-chip.active');
+  const type = filterType || (active ? active.dataset.type : 'all') || 'all';
+
+  let rows = currentTab === 'open'
+    ? allLeads.filter(c => c.status === 'submitted')
+    : allLeads.filter(c => c.assigned_trade_id === currentUser.id);
+
+  if(type !== 'all') rows = rows.filter(c => c.service === type);
+
+  if(rows.length === 0){
+    listEl.innerHTML = `<div class="panel" style="text-align:center;">No ${currentTab === 'open' ? 'open callouts' : 'accepted jobs'} right now.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = rows.map(c => `
+    <div class="lead-card">
+      <div class="lead-top">
+        <div style="display:flex;gap:14px;">
+          ${c.photo_url ? `<div class="thumb-sm"><img class="img-cover" src="${c.photo_url}"></div>` : ''}
+          <div>
+            <span class="badge ${c.service==='heat'?'badge-heat':'badge-water'}">${c.issue || c.service}</span>
+            ${c.urgency==='Emergency — right now' ? '<span class="badge badge-urgent" style="margin-left:6px;">Emergency</span>' : ''}
+            <p style="margin:10px 0 0;color:var(--text);">${c.description ? '"'+c.description+'"' : ''}</p>
+          </div>
+        </div>
+      </div>
+      <div class="lead-meta" style="margin-top:10px;">
+        ${c.status === 'submitted'
+          ? (c.postcode || 'Postcode not given')
+          : `📍 ${c.address || ''} · ${c.customer_name || ''} · ${c.customer_phone || ''}`}
+        · Posted ${new Date(c.created_at).toLocaleString()}
+      </div>
+      <div style="margin-top:14px;">
+        ${c.status === 'submitted'
+          ? `<button class="btn ${c.service==='heat'?'btn-primary':'btn-water'} btn-sm" onclick="acceptLead('${c.id}')">Accept callout</button>`
+          : `<span class="badge" style="background:rgba(30,157,99,.15);color:var(--ok);">${c.status === 'accepted' ? 'Accepted by you' : 'Completed'}</span>`}
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterLeads(type, el){
+  document.querySelectorAll('.filter-chip').forEach(c=>{ c.classList.remove('active'); c.dataset.type=''; });
+  el.classList.add('active');
+  el.dataset.type = type;
+  render(type);
+}
+
+async function acceptLead(id){
+  const auth = await getProfile(currentUser.id);
+  const { error } = await supabaseClient
+    .from('callouts')
+    .update({
+      status: 'accepted',
+      assigned_trade_id: currentUser.id,
+      assigned_trade_name: auth ? auth.business_name : currentUser.email
+    })
+    .eq('id', id)
+    .eq('status', 'submitted'); // prevents double-accepting a job someone else just took
+
+  if(error){
+    alert('Could not accept this callout — it may have just been taken by someone else.');
+  }
+  await loadLeads();
+}
+</script>
+</body>
+</html>
