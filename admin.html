@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Manage site images — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout <span class="badge badge-urgent" style="margin-left:8px;">Admin</span></a>
+    <div class="navlinks"><span class="mono" id="whoami" style="color:var(--muted);">…</span></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+  </div>
+</nav>
+
+<div class="wrap" style="max-width:900px;margin:40px auto;">
+  <h2 style="margin-bottom:6px;">Manage site images</h2>
+  <p style="margin-bottom:30px;">Upload a replacement for any photo shown on the public site. Changes go live immediately.</p>
+
+  <div id="deniedPanel" class="panel hidden" style="text-align:center;">
+    <h3>Admins only</h3>
+    <p>Your account doesn't have admin access. Ask whoever set up the project to change your role to "admin" in the profiles table.</p>
+  </div>
+
+  <div id="imageGrid" class="hidden" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;"></div>
+</div>
+
+<script>
+const SLOTS = [
+  { key:'hero', label:'Homepage hero photo', fallback:'https://picsum.photos/seed/callout-hero/700/400' },
+  { key:'heating-card', label:'Heating service card', fallback:'https://picsum.photos/seed/callout-heating/500/300' },
+  { key:'plumbing-card', label:'Plumbing service card', fallback:'https://picsum.photos/seed/callout-plumbing/500/300' },
+  { key:'eng1', label:'Engineer photo — 1', fallback:'https://picsum.photos/seed/callout-eng1/300/300' },
+  { key:'eng2', label:'Engineer photo — 2', fallback:'https://picsum.photos/seed/callout-eng2/300/300' },
+  { key:'eng3', label:'Engineer photo — 3', fallback:'https://picsum.photos/seed/callout-eng3/300/300' },
+  { key:'eng4', label:'Engineer photo — 4', fallback:'https://picsum.photos/seed/callout-eng4/300/300' },
+  { key:'cust1', label:'Testimonial photo — 1', fallback:'https://picsum.photos/seed/callout-cust1/100/100' },
+  { key:'cust2', label:'Testimonial photo — 2', fallback:'https://picsum.photos/seed/callout-cust2/100/100' },
+  { key:'cust3', label:'Testimonial photo — 3', fallback:'https://picsum.photos/seed/callout-cust3/100/100' },
+];
+
+let currentImages = {};
+
+(async function init(){
+  const auth = await requireAuth();
+  if(!auth) return;
+  if(!auth.profile || auth.profile.role !== 'admin'){
+    document.getElementById('deniedPanel').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('whoami').textContent = auth.session.user.email;
+  await loadImages();
+})();
+
+async function loadImages(){
+  const { data } = await supabaseClient.from('site_images').select('slot,url');
+  currentImages = {};
+  (data || []).forEach(row => { currentImages[row.slot] = row.url; });
+  renderGrid();
+}
+
+function renderGrid(){
+  const grid = document.getElementById('imageGrid');
+  grid.classList.remove('hidden');
+  grid.innerHTML = SLOTS.map(s => `
+    <div class="panel" style="text-align:center;">
+      <div style="width:100%;aspect-ratio:4/3;border-radius:12px;overflow:hidden;margin-bottom:12px;border:1px solid var(--line);">
+        <img class="img-cover" src="${currentImages[s.key] || s.fallback}" id="preview-${s.key}">
+      </div>
+      <div style="font-weight:600;font-size:13.5px;margin-bottom:10px;">${s.label}</div>
+      <input type="file" accept="image/*" class="hidden" id="file-${s.key}" onchange="uploadImage('${s.key}', event)">
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('file-${s.key}').click()">Replace photo</button>
+    </div>
+  `).join('');
+}
+
+async function uploadImage(slot, e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const path = `${slot}-${Date.now()}.${file.name.split('.').pop()}`;
+
+  const { error: upErr } = await supabaseClient.storage.from('site-images').upload(path, file, { upsert: true });
+  if(upErr){ alert('Upload failed: ' + upErr.message); return; }
+
+  const { data: pub } = supabaseClient.storage.from('site-images').getPublicUrl(path);
+  const url = pub.publicUrl;
+
+  const { error: dbErr } = await supabaseClient.from('site_images').upsert({ slot, url, updated_at: new Date().toISOString() });
+  if(dbErr){ alert('Uploaded, but saving the reference failed: ' + dbErr.message); return; }
+
+  currentImages[slot] = url;
+  document.getElementById(`preview-${slot}`).src = url;
+}
+</script>
+</body>
+</html>

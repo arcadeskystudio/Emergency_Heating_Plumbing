@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Get help now — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><a href="how-it-works.html">How it works</a><a href="login.html">Log in</a></div>
+    <div class="navcta"></div>
+  </div>
+</nav>
+
+<div style="max-width:640px;margin:44px auto;padding:0 24px;">
+
+  <!-- AUTH GATE -->
+  <div id="authGate" class="panel hidden" style="text-align:center;">
+    <h2>Log in to submit a callout</h2>
+    <p>We need an account so you can track your callout and the engineer can reach you.</p>
+    <a href="login.html" class="btn btn-primary" style="margin-right:8px;">Log in</a>
+    <a href="signup.html" class="btn btn-ghost">Sign up</a>
+  </div>
+
+  <div id="formWrap">
+
+  <div class="progress">
+    <span class="done" id="pg1"></span><span id="pg2"></span><span id="pg3"></span><span id="pg4"></span><span id="pg5"></span>
+  </div>
+
+  <!-- STEP 1: service type -->
+  <div id="step1">
+    <h2>What's gone wrong?</h2>
+    <p>Choose the trade that fits your problem.</p>
+    <div class="choice-grid">
+      <div class="choice-card" id="cardHeat" onclick="chooseService('heat')">
+        <div class="ic">🔥</div><h4>Heating</h4><p style="margin:0;">No heat, no hot water, boiler trouble</p>
+      </div>
+      <div class="choice-card" id="cardWater" onclick="chooseService('water')">
+        <div class="ic">💧</div><h4>Plumbing</h4><p style="margin:0;">Leaks, blockages, kitchen & bathroom</p>
+      </div>
+    </div>
+    <div class="step-footer"><span></span><button class="btn btn-primary" onclick="goStep(2)" id="next1" disabled>Continue →</button></div>
+  </div>
+
+  <!-- STEP 2: sub-issue -->
+  <div id="step2" class="hidden">
+    <h2 id="step2Title">What kind of issue?</h2>
+    <p>Pick the closest match — this helps us send the right engineer.</p>
+    <div class="check-grid" id="heatIssues">
+      <label class="check-pill"><input type="radio" name="issue">No heating</label>
+      <label class="check-pill"><input type="radio" name="issue">No hot water</label>
+      <label class="check-pill"><input type="radio" name="issue">Boiler breakdown</label>
+      <label class="check-pill"><input type="radio" name="issue">Radiator not heating</label>
+      <label class="check-pill"><input type="radio" name="issue">Strange noise or smell</label>
+      <label class="check-pill"><input type="radio" name="issue">New boiler / install</label>
+      <label class="check-pill"><input type="radio" name="issue">Other heating issue</label>
+    </div>
+    <div class="check-grid hidden" id="waterIssues">
+      <label class="check-pill"><input type="radio" name="issue">Burst pipe / leak</label>
+      <label class="check-pill"><input type="radio" name="issue">Blocked drain</label>
+      <label class="check-pill"><input type="radio" name="issue">Kitchen plumbing</label>
+      <label class="check-pill"><input type="radio" name="issue">Bathroom plumbing</label>
+      <label class="check-pill"><input type="radio" name="issue">Tap / fixture repair</label>
+      <label class="check-pill"><input type="radio" name="issue">Other plumbing issue</label>
+    </div>
+
+    <div class="two-col" style="margin-top:28px;">
+      <div class="field">
+        <label>How urgent is it?</label>
+        <select id="urgencySelect">
+          <option value="">Select urgency…</option>
+          <option>Emergency — right now</option>
+          <option>Today</option>
+          <option>This week</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Property type</label>
+        <select id="propertySelect">
+          <option value="">Select property…</option>
+          <option>House</option>
+          <option>Flat / apartment</option>
+          <option>Rented property</option>
+          <option>Commercial premises</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="step-footer"><button class="btn btn-ghost" onclick="goStep(1)">← Back</button><button class="btn btn-primary" onclick="goStep(3)">Continue →</button></div>
+  </div>
+
+  <!-- STEP 3: postcode -->
+  <div id="step3" class="hidden">
+    <h2>Where do you need us?</h2>
+    <p>Type your postcode, pick it from the list, then add your house number.</p>
+    <div class="field">
+      <label>Postcode</label>
+      <input type="text" id="postcodeInput" placeholder="e.g. KY11 4AB" autocomplete="off" oninput="searchPostcode()">
+      <div class="suggest-list hidden" id="suggestList"></div>
+    </div>
+    <div class="field hidden" id="houseField">
+      <label>House number or name</label>
+      <input type="text" id="houseInput" placeholder="e.g. 12, or Rose Cottage" oninput="updateAddress()">
+    </div>
+    <div class="panel panel-tight hidden" id="selectedAddress" style="margin-top:10px;"></div>
+    <div class="step-footer"><button class="btn btn-ghost" onclick="goStep(2)">← Back</button><button class="btn btn-primary" onclick="goStep(4)" id="next3" disabled>Continue →</button></div>
+  </div>
+
+  <!-- STEP 4: details -->
+  <div id="step4" class="hidden">
+    <h2>Tell us more</h2>
+    <div class="field">
+      <label>Describe the problem</label>
+      <textarea id="descBox" placeholder="e.g. Water dripping from under the kitchen sink, been going on since this morning..."></textarea>
+    </div>
+    <div class="field">
+      <label>Add photos of the problem (up to 5 — tap × to remove one)</label>
+      <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+        📷 Tap to add photos of the problem
+      </div>
+      <input type="file" id="fileInput" accept="image/*" multiple class="hidden" onchange="handleFiles(event)">
+      <div class="upload-preview" id="uploadPreview"></div>
+    </div>
+    <div class="field">
+      <label>Best time for an engineer to call out</label>
+      <select id="accessSelect">
+        <option value="">Select a time window…</option>
+        <option>As soon as possible</option>
+        <option>This morning</option>
+        <option>This afternoon</option>
+        <option>This evening</option>
+        <option>Tomorrow</option>
+      </select>
+    </div>
+    <div class="field"><label>Anything the engineer should know before arriving? (optional)</label><input type="text" id="accessNotes" placeholder="e.g. Gate code, parking, dog on premises"></div>
+    <div class="step-footer"><button class="btn btn-ghost" onclick="goStep(3)">← Back</button><button class="btn btn-primary" onclick="fillReview();goStep(5)">Review →</button></div>
+  </div>
+
+  <!-- STEP 5: review -->
+  <div id="step5" class="hidden">
+    <h2>Review your callout</h2>
+    <div class="panel" id="reviewPanel" style="margin-bottom:24px;"></div>
+    <div class="step-footer"><button class="btn btn-ghost" onclick="goStep(4)">← Back</button><button class="btn btn-primary" onclick="submitRequest(event)">Submit callout</button></div>
+  </div>
+
+  <!-- CONFIRMATION -->
+  <div id="stepDone" class="hidden">
+    <div class="panel" style="text-align:center;">
+      <div style="font-size:36px;">✅</div>
+      <h2>Callout submitted</h2>
+      <p>We're matching you with a local engineer now — you can track it on your dashboard.</p>
+      <div class="lead-card" style="text-align:left;margin-top:20px;" id="confirmCard"></div>
+      <a href="customer-dashboard.html" class="btn btn-primary" style="margin-top:20px;">Track my callout →</a>
+    </div>
+  </div>
+
+  </div>
+
+</div>
+
+<script src="assets/script.js"></script>
+<script>
+let chosenService = null;
+let chosenIssue = '';
+let chosenUrgency = '';
+let chosenAddress = '';
+let chosenPostcode = '';
+let currentUser = null;
+let currentProfile = null;
+
+(async function initPage(){
+  const session = await getSession();
+  if(!session){
+    document.getElementById('authGate').classList.remove('hidden');
+    document.getElementById('formWrap').classList.add('hidden');
+    return;
+  }
+  currentUser = session.user;
+  currentProfile = await getProfile(currentUser.id);
+})();
+
+function chooseService(type){
+  chosenService = type;
+  document.getElementById('cardHeat').classList.toggle('sel', type==='heat');
+  document.getElementById('cardWater').classList.toggle('sel', type==='water');
+  document.getElementById('cardWater').classList.toggle('water-sel', type==='water');
+  document.getElementById('next1').disabled = false;
+  document.getElementById('heatIssues').classList.toggle('hidden', type!=='heat');
+  document.getElementById('waterIssues').classList.toggle('hidden', type!=='water');
+  document.getElementById('step2Title').textContent = type==='heat' ? 'What kind of heating issue?' : 'What kind of plumbing issue?';
+}
+
+function goStep(n){
+  for(let i=1;i<=5;i++){
+    document.getElementById('step'+i).classList.toggle('hidden', i!==n);
+  }
+  for(let i=1;i<=5;i++){
+    document.getElementById('pg'+i).classList.toggle('done', i<=n);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+let pcTimer = null;
+let pickedPostcodeInfo = null; // { postcode, area }
+
+function searchPostcode(){
+  const q = document.getElementById('postcodeInput').value.trim();
+  const list = document.getElementById('suggestList');
+  clearTimeout(pcTimer);
+  if(q.length < 2){ list.classList.add('hidden'); list.innerHTML=''; return; }
+  pcTimer = setTimeout(async ()=>{
+    try{
+      // 1) try autocomplete (works for partial postcodes like "KY12")
+      const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(q)}/autocomplete`);
+      const json = await res.json();
+      let matches = json.result || [];
+
+      // 2) fallback: if autocomplete found nothing, try an exact lookup —
+      //    this catches complete postcodes the autocomplete endpoint misses
+      if(matches.length === 0){
+        const norm = q.toUpperCase().replace(/\s+/g,'');
+        const res2 = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(norm)}`);
+        if(res2.ok){
+          const json2 = await res2.json();
+          if(json2.result) matches = [json2.result.postcode];
+        }
+      }
+
+      if(matches.length === 0){
+        list.innerHTML = `<div style="color:var(--muted);cursor:default;">No match yet — check the postcode or keep typing</div>`;
+        list.classList.remove('hidden');
+        return;
+      }
+      list.innerHTML = matches.map(pc => `<div onclick="pickPostcode('${pc}')">${pc}</div>`).join('');
+      list.classList.remove('hidden');
+    }catch(err){
+      list.innerHTML = `<div style="color:var(--muted);cursor:default;">Couldn't reach postcode lookup — check your connection</div>`;
+      list.classList.remove('hidden');
+    }
+  }, 250);
+}
+
+async function pickPostcode(pc){
+  document.getElementById('postcodeInput').value = pc;
+  document.getElementById('suggestList').classList.add('hidden');
+  chosenPostcode = pc;
+  pickedPostcodeInfo = { postcode: pc, area: '' };
+  // fetch the street/area details for this postcode
+  try{
+    const res = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(pc)}`);
+    const json = await res.json();
+    if(json.result){
+      const r = json.result;
+      pickedPostcodeInfo.area = [r.admin_ward, r.admin_district].filter(Boolean).join(', ');
+    }
+  }catch(e){ /* area stays blank; postcode alone is still fine */ }
+  document.getElementById('houseField').classList.remove('hidden');
+  document.getElementById('houseInput').focus();
+  updateAddress();
+}
+
+function updateAddress(){
+  if(!pickedPostcodeInfo) return;
+  const house = document.getElementById('houseInput').value.trim();
+  chosenAddress = [house, pickedPostcodeInfo.area, pickedPostcodeInfo.postcode].filter(Boolean).join(', ');
+  const box = document.getElementById('selectedAddress');
+  box.classList.remove('hidden');
+  box.innerHTML = `📍 <strong>${chosenAddress}</strong>${house ? '' : ' <span style="color:var(--muted);">(add your house number above)</span>'}`;
+  document.getElementById('next3').disabled = !house;
+}
+
+let selectedFiles = [];
+
+function handleFiles(e){
+  const incoming = Array.from(e.target.files).filter(f => f.type.startsWith('image'));
+  for(const f of incoming){
+    if(selectedFiles.length >= 5){ alert('Maximum 5 photos.'); break; }
+    selectedFiles.push(f);
+  }
+  e.target.value = ''; // allow re-picking the same file after deleting it
+  renderPreviews();
+}
+
+function removeFile(idx){
+  selectedFiles.splice(idx, 1);
+  renderPreviews();
+}
+
+function renderPreviews(){
+  const preview = document.getElementById('uploadPreview');
+  preview.innerHTML = selectedFiles.map((f, i) => `
+    <div class="up-item">
+      <img src="${URL.createObjectURL(f)}">
+      <button type="button" class="up-del" onclick="removeFile(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function fillReview(){
+  const issueEl = document.querySelector('input[name=issue]:checked');
+  chosenIssue = issueEl ? issueEl.closest('.check-pill').textContent.trim() : 'Not specified';
+  chosenUrgency = document.getElementById('urgencySelect').value || 'Not specified';
+  const property = document.getElementById('propertySelect').value || 'Not specified';
+  const access = document.getElementById('accessSelect').value || 'Not specified';
+  const notes = document.getElementById('accessNotes').value || '—';
+  const desc = document.getElementById('descBox').value || '(no description added)';
+  const serviceLabel = chosenService==='heat' ? '🔥 Heating' : '💧 Plumbing';
+
+  document.getElementById('reviewPanel').innerHTML = `
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;">
+      <span class="badge ${chosenService==='heat'?'badge-heat':'badge-water'}">${serviceLabel}</span>
+      ${chosenUrgency==='Emergency — right now' ? '<span class="badge badge-urgent">Emergency</span>' : ''}
+    </div>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Issue:</strong> ${chosenIssue}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Urgency:</strong> ${chosenUrgency}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Property type:</strong> ${property}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Address:</strong> ${chosenAddress || 'Not selected'}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Preferred time:</strong> ${access}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Access notes:</strong> ${notes}</p>
+    <p style="margin:0 0 8px;"><strong style="color:var(--text);">Description:</strong> ${desc}</p>
+    <p style="margin:0;"><strong style="color:var(--text);">Photos attached:</strong> ${selectedFiles.length}</p>
+  `;
+}
+
+async function submitRequest(evt){
+  const submitBtn = evt.target;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  const photoUrls = [];
+  for(let i = 0; i < selectedFiles.length; i++){
+    const f = selectedFiles[i];
+    const path = `${currentUser.id}/${Date.now()}-${i}-${f.name}`;
+    const { error: upErr } = await supabaseClient.storage
+      .from('callout-photos').upload(path, f);
+    if(upErr){
+      const proceed = confirm(`Photo ${i+1} could not be uploaded (${upErr.message}).\n\nContinue submitting with the photos that worked?`);
+      if(!proceed){
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit callout';
+        return;
+      }
+    } else {
+      const { data: pub } = supabaseClient.storage.from('callout-photos').getPublicUrl(path);
+      photoUrls.push(pub.publicUrl);
+    }
+  }
+
+  const row = {
+    customer_id: currentUser.id,
+    customer_name: currentProfile ? currentProfile.full_name : currentUser.email,
+    customer_phone: currentProfile ? currentProfile.phone : null,
+    service: chosenService,
+    issue: chosenIssue,
+    urgency: chosenUrgency,
+    property_type: document.getElementById('propertySelect').value,
+    address: chosenAddress,
+    postcode: chosenPostcode,
+    description: document.getElementById('descBox').value,
+    access_time: document.getElementById('accessSelect').value,
+    access_notes: document.getElementById('accessNotes').value,
+    photo_url: photoUrls[0] || null,
+    photo_urls: photoUrls,
+    status: 'submitted'
+  };
+
+  const { data, error } = await supabaseClient.from('callouts').insert(row).select().single();
+
+  if(error){
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit callout';
+    alert('Something went wrong submitting your callout: ' + error.message);
+    return;
+  }
+
+  document.getElementById('confirmCard').innerHTML = `
+    <div class="lead-top">
+      <div>
+        <span class="badge ${chosenService==='heat'?'badge-heat':'badge-water'}">${chosenIssue}</span>
+        <div class="lead-meta mono" style="margin-top:10px;">Ref: ${data.id.slice(0,8).toUpperCase()}</div>
+      </div>
+      <span class="badge" style="background:rgba(30,157,99,.15);color:var(--ok);">Awaiting engineer</span>
+    </div>`;
+
+  document.getElementById('step5').classList.add('hidden');
+  document.getElementById('stepDone').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>

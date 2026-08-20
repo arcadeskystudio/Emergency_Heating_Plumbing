@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><a href="how-it-works.html">How it works</a><a href="signup.html">Sign up</a></div>
+    <div class="navcta"><a href="request-service.html" class="btn btn-primary btn-sm">Get help now</a></div>
+  </div>
+</nav>
+
+<div class="auth-wrap">
+  <h1 style="font-size:26px;text-align:center;">Log in</h1>
+  <p style="text-align:center;margin-bottom:24px;">Log in to track your callouts or manage incoming jobs.</p>
+
+  <div id="authErr" class="hidden" style="background:rgba(208,57,43,.1);color:var(--urgent);padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13.5px;"></div>
+
+  <form onsubmit="return handleLogin(event)">
+    <div class="field"><label>Email</label><input id="loginEmail" type="email" required placeholder="you@email.com"></div>
+    <div class="field"><label>Password</label><input id="loginPassword" type="password" required placeholder="••••••••"></div>
+    <button type="submit" id="loginBtn" class="btn btn-primary btn-block">Log in</button>
+  </form>
+
+  <p style="text-align:center;margin-top:18px;font-size:13.5px;">No account yet? <a href="signup.html" style="color:var(--flame);">Sign up</a></p>
+</div>
+
+<script>
+async function handleLogin(e){
+  e.preventDefault();
+  document.getElementById('authErr').classList.add('hidden');
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  btn.textContent = 'Logging in…';
+
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if(error){
+    document.getElementById('authErr').textContent = error.message;
+    document.getElementById('authErr').classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Log in';
+    return false;
+  }
+
+  const profile = await getProfile(data.user.id);
+  if(profile && profile.role === 'trade'){
+    window.location.href = 'plumber-dashboard.html';
+  } else if(profile && profile.role === 'admin'){
+    window.location.href = 'admin.html';
+  } else {
+    window.location.href = 'customer-dashboard.html';
+  }
+  return false;
+}
+</script>
+</body>
+</html>

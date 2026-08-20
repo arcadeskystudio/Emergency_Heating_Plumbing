@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Callout works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks">
+      <a href="how-it-works.html">How it works</a>
+      <a href="signup.html?role=plumber">For tradespeople</a>
+      <a href="login.html">Log in</a>
+    </div>
+    <div class="navcta"><a href="request-service.html" class="btn btn-primary btn-sm">Get help now</a></div>
+  </div>
+</nav>
+
+<header class="section" style="padding-bottom:20px;">
+  <div class="wrap">
+    <span class="eyebrow-plain">How it works</span>
+    <h1 style="font-size:clamp(28px,4vw,42px);">From burst pipe to <span class="grad-text">booked engineer</span></h1>
+    <p style="max-width:560px;">Two sides, one callout. Here's what happens for the person with the problem, and for the engineer who fixes it.</p>
+  </div>
+</header>
+
+<section class="section" style="padding-top:0;">
+  <div class="wrap">
+    <div class="role-toggle" style="max-width:340px;">
+      <button id="tabCustomer" class="active" onclick="showTab('customer')">For customers</button>
+      <button id="tabTrade" onclick="showTab('trade')">For tradespeople</button>
+    </div>
+
+    <div id="panelCustomer">
+      <div class="steps" style="grid-template-columns:1fr;gap:16px;max-width:700px;">
+        <div class="step-card"><span class="step-num">01</span><h4>Describe the problem</h4>
+          <p>Choose Heating or Plumbing, then the specific issue — kitchen leak, no hot water, blocked drain, whatever it is. Add a photo or short video so the engineer arrives with the right parts.</p>
+        </div>
+        <div class="step-card"><span class="step-num">02</span><h4>Give us your postcode</h4>
+          <p>Search your postcode, pick your address from the list, and tell us how urgent it is — right now, today, or this week.</p>
+        </div>
+        <div class="step-card"><span class="step-num">03</span><h4>Get matched, not spammed</h4>
+          <p>Your callout is sent to one available, vetted local engineer who covers that job. You won't get five phone calls from five different companies.</p>
+        </div>
+        <div class="step-card"><span class="step-num">04</span><h4>Track it on your dashboard</h4>
+          <p>See the engineer's details, ETA, and job status — accepted, en route, complete — all in one place.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="panelTrade" class="hidden">
+      <div class="steps" style="grid-template-columns:1fr;gap:16px;max-width:700px;">
+        <div class="step-card"><span class="step-num">01</span><h4>Set your coverage</h4>
+          <p>Tell us which postcodes you cover and whether you do heating, plumbing, or both — right down to specific jobs like boiler repair or bathroom installs.</p>
+        </div>
+        <div class="step-card"><span class="step-num">02</span><h4>Get exclusive callouts</h4>
+          <p>When a job matches your coverage and you're available, it comes to you first — not shared with four other engineers at once.</p>
+        </div>
+        <div class="step-card"><span class="step-num">03</span><h4>Accept or pass</h4>
+          <p>See the job type, urgency, and rough location before committing. Accept to unlock the full address and contact details.</p>
+        </div>
+        <div class="step-card"><span class="step-num">04</span><h4>Build your reputation</h4>
+          <p>Completed callouts build a track record on your profile, so you see more of the jobs that suit you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="border-top:1px solid var(--line);">
+  <div class="wrap">
+    <span class="eyebrow-plain">Questions</span>
+    <h2 style="margin-bottom:24px;">Good to know</h2>
+    <div class="panel" style="margin-bottom:14px;"><h4 style="margin-bottom:6px;">Is a callout free to submit?</h4><p style="margin:0;">Yes — submitting a callout costs nothing. Any job pricing is agreed directly with the engineer once they've assessed the work.</p></div>
+    <div class="panel" style="margin-bottom:14px;"><h4 style="margin-bottom:6px;">Will more than one tradesperson contact me?</h4><p style="margin:0;">No. Each callout is sent to one engineer at a time, so you're not fielding five sales calls after a stressful morning.</p></div>
+    <div class="panel"><h4 style="margin-bottom:6px;">Where does Callout operate?</h4><p style="margin:0;">This prototype covers Fife and Edinburgh with five founding engineers, with plans to expand across Scotland.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div class="brand" style="font-size:16px;"><span class="dot"></span>Callout</div>
+    <div class="footer-links">
+      <a href="signup.html">Sign up</a><a href="login.html">Log in</a><a href="request-service.html">Get help now</a>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/script.js"></script>
+<script>
+function showTab(which){
+  document.getElementById('tabCustomer').classList.toggle('active', which==='customer');
+  document.getElementById('tabTrade').classList.toggle('active', which==='trade');
+  document.getElementById('panelCustomer').classList.toggle('hidden', which!=='customer');
+  document.getElementById('panelTrade').classList.toggle('hidden', which!=='trade');
+}
+</script>
+</body>
+</html>

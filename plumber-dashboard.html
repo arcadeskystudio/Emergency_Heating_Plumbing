@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Incoming callouts — Callout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-config.js"></script>
+<script src="assets/auth.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="wrap">
+    <a href="index.html" class="brand"><span class="dot"></span>Callout</a>
+    <div class="navlinks"><span class="mono" id="whoami" style="color:var(--muted);">…</span></div>
+    <div class="navcta"><a href="#" onclick="logout()" class="btn btn-ghost btn-sm">Log out</a></div>
+  </div>
+</nav>
+
+<div class="dash-shell">
+  <aside class="sidebar">
+    <a href="#" class="active" onclick="showTab('open', this)">Incoming callouts</a>
+    <a href="#" onclick="showTab('mine', this)">My jobs</a>
+    <a href="profile.html">My profile</a>
+  </aside>
+
+  <main class="dash-main">
+    <h2 style="margin-bottom:6px;" id="pageTitle">Incoming callouts</h2>
+    <p style="margin-bottom:20px;">Tap a job to see full details and photos.</p>
+    <div class="filter-row">
+      <span class="filter-chip active" data-type="all" onclick="filterLeads('all', this)">All</span>
+      <span class="filter-chip" data-type="heat" onclick="filterLeads('heat', this)">Heating</span>
+      <span class="filter-chip" data-type="water" onclick="filterLeads('water', this)">Plumbing</span>
+    </div>
+    <div id="leadList"><p>Loading…</p></div>
+  </main>
+</div>
+
+<!-- Job detail popup -->
+<div class="modal-overlay hidden" id="jobModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+let currentUser = null;
+let currentTab = 'open';
+let currentFilter = 'all';
+let allLeads = [];
+let modalJob = null;
+let slideIdx = 0;
+
+(async function init(){
+  const auth = await requireAuth();
+  if(!auth) return;
+  if(auth.profile && auth.profile.role !== 'trade'){
+    alert('This dashboard is for tradespeople. Redirecting you to your callouts.');
+    window.location.href = 'customer-dashboard.html';
+    return;
+  }
+  currentUser = auth.session.user;
+  document.getElementById('whoami').textContent = auth.profile ? auth.profile.business_name : currentUser.email;
+  await loadLeads();
+})();
+
+function showTab(tab, el){
+  currentTab = tab;
+  document.getElementById('pageTitle').textContent = tab==='open' ? 'Incoming callouts' : 'My jobs';
+  document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+async function loadLeads(){
+  const { data, error } = await supabaseClient
+    .from('callouts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if(error){
+    document.getElementById('leadList').innerHTML = `<p>Couldn't load callouts: ${error.message}</p>`;
+    return;
+  }
+  allLeads = data || [];
+  render();
+}
+
+function photosOf(c){
+  let arr = Array.isArray(c.photo_urls) ? c.photo_urls : [];
+  if(arr.length === 0 && c.photo_url) arr = [c.photo_url];
+  return arr;
+}
+
+function statusBadge(c){
+  if(c.status === 'accepted') return '<span class="badge" style="background:var(--water-dim);color:var(--water);">In progress</span>';
+  if(c.status === 'trade_completed') return '<span class="badge" style="background:var(--flame-dim);color:var(--flame);">Awaiting customer confirmation</span>';
+  if(c.status === 'completed') return '<span class="badge" style="background:rgba(30,157,99,.15);color:var(--ok);">Completed</span>';
+  return '';
+}
+
+function render(){
+  const listEl = document.getElementById('leadList');
+  let rows = currentTab === 'open'
+    ? allLeads.filter(c => c.status === 'submitted')
+    : allLeads.filter(c => c.assigned_trade_id === currentUser.id);
+  if(currentFilter !== 'all') rows = rows.filter(c => c.service === currentFilter);
+
+  if(rows.length === 0){
+    listEl.innerHTML = `<div class="panel" style="text-align:center;">No ${currentTab === 'open' ? 'open callouts' : 'jobs'} right now.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = rows.map(c => {
+    const photos = photosOf(c);
+    return `
+    <div class="lead-card" onclick="openModal('${c.id}')">
+      <div class="lead-top">
+        <div style="display:flex;gap:14px;">
+          ${photos.length ? `<div class="thumb-sm" style="position:relative;"><img class="img-cover" src="${photos[0]}">${photos.length>1?`<span style="position:absolute;bottom:2px;right:2px;background:rgba(11,37,69,.8);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px;">+${photos.length-1}</span>`:''}</div>` : ''}
+          <div>
+            <span class="badge ${c.service==='heat'?'badge-heat':'badge-water'}">${c.issue || c.service}</span>
+            ${c.urgency==='Emergency — right now' ? '<span class="badge badge-urgent" style="margin-left:6px;">Emergency</span>' : ''}
+            ${currentTab==='mine' ? ' ' + statusBadge(c) : ''}
+            <p style="margin:10px 0 0;color:var(--text);">${c.description ? '"'+c.description+'"' : ''}</p>
+          </div>
+        </div>
+      </div>
+      <div class="lead-meta" style="margin-top:10px;">
+        ${c.status === 'submitted' ? (c.postcode || '') : `📍 ${c.address || ''}`}
+        · ${new Date(c.created_at).toLocaleString()}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterLeads(type, el){
+  currentFilter = type;
+  document.querySelectorAll('.filter-chip').forEach(ch=>ch.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function openModal(id){
+  modalJob = allLeads.find(c => c.id === id);
+  if(!modalJob) return;
+  slideIdx = 0;
+  renderModal();
+  document.getElementById('jobModal').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('jobModal').classList.add('hidden');
+  modalJob = null;
+}
+
+function renderModal(){
+  const c = modalJob;
+  const photos = photosOf(c);
+  const mine = c.assigned_trade_id === currentUser.id;
+
+  let sliderHtml = '';
+  if(photos.length){
+    sliderHtml = `
+      <div class="slider">
+        <img src="${photos[slideIdx]}" alt="Job photo ${slideIdx+1}">
+        ${photos.length > 1 ? `
+          <button class="slider-nav prev" onclick="event.stopPropagation();slide(-1)">‹</button>
+          <button class="slider-nav next" onclick="event.stopPropagation();slide(1)">›</button>
+          <span class="slider-count">${slideIdx+1} / ${photos.length}</span>` : ''}
+      </div>`;
+  }
+
+  let actionHtml = '';
+  if(c.status === 'submitted'){
+    actionHtml = `<button class="btn ${c.service==='heat'?'btn-primary':'btn-water'} btn-block" onclick="acceptLead('${c.id}')">Accept this callout</button>`;
+  } else if(mine && c.status === 'accepted'){
+    actionHtml = `<button class="btn btn-primary btn-block" onclick="markComplete('${c.id}')">Mark job as complete</button>
+      <p style="font-size:12.5px;margin-top:8px;text-align:center;">The customer will be asked to confirm before it's final.</p>`;
+  } else if(mine && c.status === 'trade_completed'){
+    actionHtml = `<p style="text-align:center;">⏳ Waiting for the customer to confirm completion.</p>`;
+  } else if(c.status === 'completed'){
+    actionHtml = `<p style="text-align:center;">✅ Job completed${c.rating ? ` · Rated ${'★'.repeat(c.rating)}` : ''}</p>
+      ${c.review ? `<div class="panel panel-tight" style="margin-top:10px;"><em>"${c.review}"</em></div>` : ''}`;
+  }
+
+  document.getElementById('modalBody').innerHTML = `
+    <span class="badge ${c.service==='heat'?'badge-heat':'badge-water'}">${c.issue || c.service}</span>
+    ${c.urgency==='Emergency — right now' ? '<span class="badge badge-urgent" style="margin-left:6px;">Emergency</span>' : ''}
+    ${sliderHtml}
+    <p style="margin:6px 0;"><strong>Description:</strong> ${c.description || '—'}</p>
+    <p style="margin:6px 0;"><strong>Urgency:</strong> ${c.urgency || '—'}</p>
+    <p style="margin:6px 0;"><strong>Property:</strong> ${c.property_type || '—'}</p>
+    <p style="margin:6px 0;"><strong>Preferred time:</strong> ${c.access_time || '—'}</p>
+    ${c.status === 'submitted'
+      ? `<p style="margin:6px 0;"><strong>Area:</strong> ${c.postcode || '—'} <span style="color:var(--muted);">(full address unlocks when you accept)</span></p>`
+      : `<p style="margin:6px 0;"><strong>Address:</strong> ${c.address || '—'}</p>
+         <p style="margin:6px 0;"><strong>Customer:</strong> ${c.customer_name || ''} · ${c.customer_phone || ''}</p>
+         <p style="margin:6px 0;"><strong>Access notes:</strong> ${c.access_notes || '—'}</p>`}
+    <div style="margin-top:18px;">${actionHtml}</div>
+  `;
+}
+
+function slide(dir){
+  const photos = photosOf(modalJob);
+  slideIdx = (slideIdx + dir + photos.length) % photos.length;
+  renderModal();
+}
+
+async function acceptLead(id){
+  const prof = await getProfile(currentUser.id);
+  const { error } = await supabaseClient
+    .from('callouts')
+    .update({
+      status: 'accepted',
+      assigned_trade_id: currentUser.id,
+      assigned_trade_name: prof ? prof.business_name : currentUser.email
+    })
+    .eq('id', id)
+    .eq('status', 'submitted');
+  if(error){ alert('Could not accept — it may have just been taken.'); }
+  closeModal();
+  await loadLeads();
+}
+
+async function markComplete(id){
+  const { error } = await supabaseClient
+    .from('callouts')
+    .update({ status: 'trade_completed' })
+    .eq('id', id)
+    .eq('assigned_trade_id', currentUser.id);
+  if(error){ alert('Could not update: ' + error.message); }
+  closeModal();
+  await loadLeads();
+}
+</script>
+</body>
+</html>
